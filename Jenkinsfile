@@ -1,17 +1,12 @@
+```groovy
 pipeline {
     agent any
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                git branch: 'main',
-                    url: 'https://github.com/sagarhursale/jenkins-demo.git'
-            }
-        }
-
         stage('Test') {
             steps {
+                echo 'Checking application files...'
                 sh 'test -f index.html'
                 echo 'Test successful'
             }
@@ -19,15 +14,51 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sh '''
-                    scp -o StrictHostKeyChecking=no index.html \
-                    jenkins@15.206.174.214:/tmp/index.html
+                echo 'Deploying application to Linux server...'
 
-                    ssh -o StrictHostKeyChecking=no \
-                    jenkins@15.206.174.214 \
-                    "sudo cp /tmp/index.html /usr/share/nginx/html/index.html"
-                '''
+                sshagent(['linux-server-ssh']) {
+                    sh '''
+                        scp -o StrictHostKeyChecking=no \
+                        index.html \
+                        jenkins@15.206.174.214:/tmp/index.html
+
+                        ssh -o StrictHostKeyChecking=no \
+                        jenkins@15.206.174.214 \
+                        "sudo cp /tmp/index.html /usr/share/nginx/html/index.html"
+                    '''
+                }
+
+                echo 'Deployment successful'
+            }
+        }
+
+        stage('Verify') {
+            steps {
+                echo 'Verifying deployment...'
+
+                sshagent(['linux-server-ssh']) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no \
+                        jenkins@15.206.174.214 \
+                        "curl -s http://localhost"
+                    '''
+                }
             }
         }
     }
+
+    post {
+        success {
+            echo '================================'
+            echo '   DEPLOYMENT SUCCESSFUL'
+            echo '================================'
+        }
+
+        failure {
+            echo '================================'
+            echo '   DEPLOYMENT FAILED'
+            echo '================================'
+        }
+    }
 }
+```
