@@ -6,7 +6,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: 'YOUR_GITHUB_REPO_URL'
+                    url: 'https://github.com/sagarhursale/jenkins-demo.git'
             }
         }
 
@@ -21,10 +21,10 @@ pipeline {
             steps {
                 sh '''
                     scp -o StrictHostKeyChecking=no index.html \
-                    jenkins@YOUR_SERVER_IP:/tmp/index.html
+                    jenkins@15.206.174.214:/tmp/index.html
 
                     ssh -o StrictHostKeyChecking=no \
-                    jenkins@YOUR_SERVER_IP \
+                    jenkins@15.206.174.214 \
                     "sudo cp /tmp/index.html /usr/share/nginx/html/index.html"
                 '''
             }
