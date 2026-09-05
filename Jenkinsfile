@@ -1,3 +1,4 @@
+```groovy
 pipeline {
     agent any
 
@@ -13,16 +14,13 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                echo 'Deploying application to Linux server...'
+                echo 'Deploying application...'
 
                 sshagent(['linux-server-ssh']) {
                     sh '''
-                        scp -o StrictHostKeyChecking=no \
-                        index.html \
-                        jenkins@15.206.174.214:/tmp/index.html
+                        scp -o StrictHostKeyChecking=no index.html jenkins@15.206.174.214:/tmp/index.html
 
-                        ssh -o StrictHostKeyChecking=no \
-                        jenkins@15.206.174.214 \
+                        ssh -o StrictHostKeyChecking=no jenkins@15.206.174.214 \
                         "sudo cp /tmp/index.html /usr/share/nginx/html/index.html"
                     '''
                 }
@@ -37,8 +35,7 @@ pipeline {
 
                 sshagent(['linux-server-ssh']) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no \
-                        jenkins@15.206.174.214 \
+                        ssh -o StrictHostKeyChecking=no jenkins@15.206.174.214 \
                         "curl -s http://localhost"
                     '''
                 }
@@ -48,15 +45,11 @@ pipeline {
 
     post {
         success {
-            echo '================================'
-            echo '   DEPLOYMENT SUCCESSFUL'
-            echo '================================'
+            echo 'DEPLOYMENT SUCCESSFUL'
         }
 
         failure {
-            echo '================================'
-            echo '   DEPLOYMENT FAILED'
-            echo '================================'
+            echo 'DEPLOYMENT FAILED'
         }
     }
 }
