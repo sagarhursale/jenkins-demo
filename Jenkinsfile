@@ -3,52 +3,55 @@ pipeline {
 
     stages {
 
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code from GitHub'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Building application'
+                sh 'ls -la'
+            }
+        }
+
         stage('Test') {
             steps {
-                echo 'Checking application files...'
+                echo 'Testing application'
                 sh 'test -f index.html'
-                echo 'Test successful'
             }
         }
 
         stage('Deploy') {
             steps {
-                echo 'Deploying application...'
+                echo 'Deploying to Nginx'
 
-                sshagent(['linux-server-ssh']) {
-                    sh '''
-                        scp -o StrictHostKeyChecking=no index.html jenkins@15.206.174.214:/tmp/index.html
-
-                        ssh -o StrictHostKeyChecking=no jenkins@15.206.174.214 \
-                        "sudo cp /tmp/index.html /usr/share/nginx/html/index.html"
-                    '''
-                }
-
-                echo 'Deployment successful'
+                sh '''
+                    sudo cp index.html /var/www/html/index.html
+                    sudo systemctl restart nginx
+                '''
             }
         }
 
         stage('Verify') {
             steps {
-                echo 'Verifying deployment...'
+                echo 'Checking deployment'
 
-                sshagent(['linux-server-ssh']) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no jenkins@15.206.174.214 \
-                        "curl -s http://localhost"
-                    '''
-                }
+                sh '''
+                    curl -I http://localhost
+                '''
             }
         }
     }
 
     post {
         success {
-            echo 'DEPLOYMENT SUCCESSFUL'
+            echo 'Deployment SUCCESSFUL'
         }
 
         failure {
-            echo 'DEPLOYMENT FAILED'
+            echo 'Deployment FAILED'
         }
     }
 }
