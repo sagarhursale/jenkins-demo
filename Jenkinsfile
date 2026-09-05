@@ -1,10 +1,13 @@
 pipeline {
-    agent any
+
+    agent {
+        label 'jenkins-jenkins-agent'
+    }
 
     environment {
         TARGET_SERVER = '15.206.174.214'
         TARGET_USER   = 'jenkins'
-        TARGET_DIR    = '/var/www/html'
+        NGINX_PATH    = '/var/www/html/index.html'
     }
 
     stages {
@@ -12,6 +15,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo 'Checkout code from GitHub'
+
                 checkout scm
             }
         }
@@ -19,7 +23,11 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Build stage'
-                sh 'ls -la'
+
+                sh '''
+                    echo "Files in workspace:"
+                    ls -la
+                '''
             }
         }
 
@@ -30,19 +38,32 @@ pipeline {
                 sh '''
                     test -f index.html
                     echo "index.html found - TEST PASSED"
+
+                    test -s index.html
+                    echo "index.html is not empty - TEST PASSED"
                 '''
             }
         }
 
         stage('Deploy to Nginx') {
             steps {
-                echo 'Copying website to Nginx server'
+                echo 'Deploying website to Nginx server'
 
-                sshagent(credentials: ['linux-server-ssh']) {
+                sshagent(['jenkins']) {
                     sh '''
+                        echo "Copying index.html to target server..."
+
                         scp -o StrictHostKeyChecking=no \
                             index.html \
-                            ${TARGET_USER}@${TARGET_SERVER}:${TARGET_DIR}/index.html
+                            ${TARGET_USER}@${TARGET_SERVER}:/tmp/index.html
+
+                        echo "Moving file to Nginx document root..."
+
+                        ssh -o StrictHostKeyChecking=no \
+                            ${TARGET_USER}@${TARGET_SERVER} \
+                            "sudo -n mv /tmp/index.html ${NGINX_PATH}"
+
+                        echo "Deployment completed successfully"
                     '''
                 }
             }
@@ -52,11 +73,13 @@ pipeline {
             steps {
                 echo 'Restarting Nginx'
 
-                sshagent(credentials: ['linux-server-ssh']) {
+                sshagent(['jenkins']) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no \
                             ${TARGET_USER}@${TARGET_SERVER} \
-                            "sudo systemctl restart nginx"
+                            "sudo -n systemctl restart nginx"
+
+                        echo "Nginx restarted successfully"
                     '''
                 }
             }
@@ -64,15 +87,22 @@ pipeline {
 
         stage('Verify') {
             steps {
-                echo 'Checking Nginx'
+                echo 'Verifying Nginx deployment'
 
-                sshagent(credentials: ['linux-server-ssh']) {
+                sshagent(['jenkins']) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no \
                             ${TARGET_USER}@${TARGET_SERVER} \
-                            "systemctl is-active nginx"
+                            "sudo -n test -f ${NGINX_PATH}"
 
-                        curl -I http://${TARGET_SERVER}
+                        ssh -o StrictHostKeyChecking=no \
+                            ${TARGET_USER}@${TARGET_SERVER} \
+                            "curl -fsS http://localhost"
+
+                        echo ""
+                        echo "======================================"
+                        echo " NGINX DEPLOYMENT SUCCESSFUL"
+                        echo "======================================"
                     '''
                 }
             }
