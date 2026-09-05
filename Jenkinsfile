@@ -11,42 +11,52 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                echo 'Checking out code from GitHub...'
+                echo 'Checkout code from GitHub'
                 checkout scm
             }
         }
 
         stage('Build') {
             steps {
-                echo 'Building application...'
-                sh '''
-                    echo "Files in workspace:"
-                    ls -la
-                '''
+                echo 'Build stage'
+                sh 'ls -la'
             }
         }
 
         stage('Test') {
             steps {
-                echo 'Testing application...'
+                echo 'Testing website files'
+
                 sh '''
                     test -f index.html
-                    echo "index.html exists - Test PASSED"
+                    echo "index.html found - TEST PASSED"
                 '''
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to Nginx') {
             steps {
-                echo 'Deploying files to target server...'
+                echo 'Copying website to Nginx server'
 
                 sshagent(credentials: ['linux-server-ssh']) {
                     sh '''
                         scp -o StrictHostKeyChecking=no \
                             index.html \
-                            ${TARGET_USER}@${TARGET_SERVER}:${TARGET_DIR}/
+                            ${TARGET_USER}@${TARGET_SERVER}:${TARGET_DIR}/index.html
+                    '''
+                }
+            }
+        }
 
-                        echo "Files copied successfully!"
+        stage('Restart Nginx') {
+            steps {
+                echo 'Restarting Nginx'
+
+                sshagent(credentials: ['linux-server-ssh']) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no \
+                            ${TARGET_USER}@${TARGET_SERVER} \
+                            "sudo systemctl restart nginx"
                     '''
                 }
             }
@@ -54,13 +64,15 @@ pipeline {
 
         stage('Verify') {
             steps {
-                echo 'Verifying deployment...'
+                echo 'Checking Nginx'
 
                 sshagent(credentials: ['linux-server-ssh']) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no \
                             ${TARGET_USER}@${TARGET_SERVER} \
-                            "ls -l ${TARGET_DIR}/index.html && curl -I http://localhost"
+                            "systemctl is-active nginx"
+
+                        curl -I http://${TARGET_SERVER}
                     '''
                 }
             }
@@ -69,15 +81,15 @@ pipeline {
 
     post {
         success {
-            echo '===================================='
-            echo ' DEPLOYMENT SUCCESSFUL ✅'
-            echo '===================================='
+            echo '======================================'
+            echo ' NGINX DEPLOYMENT SUCCESSFUL ✅'
+            echo '======================================'
         }
 
         failure {
-            echo '===================================='
-            echo ' DEPLOYMENT FAILED ❌'
-            echo '===================================='
+            echo '======================================'
+            echo ' NGINX DEPLOYMENT FAILED ❌'
+            echo '======================================'
         }
     }
 }
