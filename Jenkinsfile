@@ -1,3 +1,4 @@
+```groovy
 pipeline {
 
     agent {
@@ -15,7 +16,6 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo 'Checkout code from GitHub'
-
                 checkout scm
             }
         }
@@ -49,7 +49,7 @@ pipeline {
             steps {
                 echo 'Deploying website to Nginx server'
 
-                sshagent(['jenkins']) {
+                sshagent(['linux-server-ssh']) {
                     sh '''
                         echo "Copying index.html to target server..."
 
@@ -73,7 +73,7 @@ pipeline {
             steps {
                 echo 'Restarting Nginx'
 
-                sshagent(['jenkins']) {
+                sshagent(['linux-server-ssh']) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no \
                             ${TARGET_USER}@${TARGET_SERVER} \
@@ -89,11 +89,13 @@ pipeline {
             steps {
                 echo 'Verifying Nginx deployment'
 
-                sshagent(['jenkins']) {
+                sshagent(['linux-server-ssh']) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no \
                             ${TARGET_USER}@${TARGET_SERVER} \
                             "sudo -n test -f ${NGINX_PATH}"
+
+                        echo "Testing website..."
 
                         ssh -o StrictHostKeyChecking=no \
                             ${TARGET_USER}@${TARGET_SERVER} \
@@ -110,6 +112,7 @@ pipeline {
     }
 
     post {
+
         success {
             echo '======================================'
             echo ' NGINX DEPLOYMENT SUCCESSFUL ✅'
@@ -123,3 +126,4 @@ pipeline {
         }
     }
 }
+```
